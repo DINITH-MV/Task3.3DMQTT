@@ -1,71 +1,90 @@
+#include <ArduinoMqttClient.h>
 #include <WiFiNINA.h>
-#include <PubSubClient.h>
-#include <HCSR04.h>
 #include "secrets.h"
+#include <HCSR04.h>
 
-char ssid[] = SECRET_SSID;
-char pass[] = SECRET_PASS;  
+///////please enter your sensitive data in the Secret tab/arduino_secrets.h
+char ssid[] = SECRET_SSID;        // your network SSID (name)
+char pass[] = SECRET_PASS;    // your network password (use for WPA, or use as key for WEP)
+float Distance = 0.0;
 
-char mqtt_server[] = "broker.emqx.io";
-int mqtt_port = 1883;
-char topic[] = "SIT210/wave";
+UltraSonicDistanceSensor distanceSensor(13, 12);  // Initialize sensor that uses digital pins 13 and 12.
 
 WiFiClient wifiClient;
-PubSubClient client(wifiClient);
+MqttClient mqttClient(wifiClient);
 
-const int TRIG_PIN = 13;
-const int ECHO_PIN = 12;
+const char broker[] = "broker.emqx.io";
+int        port     = 1883;
+const char topic[]  = "SIT210/wave4";
 
-void setupWiFi() {
-    Serial.print("Connecting to WiFi...");
-    WiFi.begin(ssid, pass);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("Connected to WiFi");
-}
+//set interval for sending messages (milliseconds)
+const long interval = 8000;
+unsigned long previousMillis = 0;
 
-void reconnect() {
-    while (!client.connected()) {
-        Serial.print("Connecting to MQTT...");
-        if (client.connect("ArduinoClient")) {
-            Serial.println("Connected to MQTT!");
-        } else {
-            Serial.print("Failed, rc=");
-            Serial.print(client.state());
-            Serial.println(" Trying again...");
-            delay(5000);
-        }
-    }
-}
+int count = 0;
 
 void setup() {
-    Serial.begin(115200);
-    pinMode(TRIG_PIN, OUTPUT);
-    pinMode(ECHO_PIN, INPUT);
-    setupWiFi();
-    client.setServer(mqtt_server, mqtt_port);
+  //Initialize serial and wait for port to open:
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+
+  // attempt to connect to Wifi network:
+  Serial.print("Attempting to connect to WPA SSID: ");
+  Serial.println(ssid);
+  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
+    // failed, retry
+    Serial.print(".");
+    delay(5000);
+  }
+
+  Serial.println("You're connected to the network");
+  Serial.println();
+
+  Serial.print("Attempting to connect to the MQTT broker: ");
+  Serial.println(broker);
+
+  if (!mqttClient.connect(broker, port)) {
+    Serial.print("MQTT connection failed! Error code = ");
+    Serial.println(mqttClient.connectError());
+
+    while (1);
+  }
+
+  Serial.println("You're connected to the MQTT broker!");
+  Serial.println();
 }
 
 void loop() {
-    if (!client.connected()) {
-        reconnect();
-    }
-    client.loop();
+  // call poll() regularly to allow the library to send MQTT keep alive which
+  // avoids being disconnected by the broker
+  mqttClient.poll();
 
-    digitalWrite(TRIG_PIN, LOW);
-    delayMicroseconds(2);
-    digitalWrite(TRIG_PIN, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIG_PIN, LOW);
+  unsigned long currentMillis = millis();
 
-    long duration = pulseIn(ECHO_PIN, HIGH);
-    float distance = duration * 0.034 / 2;
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time a message was sent
+    previousMillis = currentMillis;
+    
+    Serial.println("Checking the distance");
 
-    if (distance < 10) {
-        Serial.println("Wave detected!");
-        client.publish(topic, "wave");
-        delay(2000); // Avoid multiple triggers
-    }
+    Distance = distanceSensor.measureDistanceCm();
+
+    if(Distance < 20.00) {
+
+      Serial.println("Wave detected");
+      Serial.print("Sending message to topic: ");
+      Serial.println(topic);
+      Serial.println("Dinith");
+
+      // send message, the Print interface can be used to set the message contents
+      mqttClient.beginMessage(topic);
+      mqttClient.print("Dinith");
+      mqttClient.endMessage();
+
+      Serial.println();
+
+    } 
+  }
 }
