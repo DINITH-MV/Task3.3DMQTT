@@ -6,99 +6,66 @@
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;  
 
-// char mqttTopic[] = "SIT210/wave";
+char mqtt_server[] = "broker.emqx.io";
+int mqtt_port = 1883;
+char topic[] = "SIT210/wave";
 
-char mqttServer[] = "broker.emqx.io";  // EMQX Public Broker
-int mqttPort = 1883;  // Unsecured MQTT Port (No TLS)
-char mqttClientID[] = "ArduinoClient";  // Unique client ID
+WiFiClient wifiClient;
+PubSubClient client(wifiClient);
 
-// MQTT Topic (Same for Publishing & Subscribing)
-char mqttTopic[] = "wave/detect";
+const int TRIG_PIN = 13;
+const int ECHO_PIN = 12;
 
-// Define Pins for UltraSonic Sensor
-#define TRIG_PIN 13
-#define ECHO_PIN 12
-
-// LED Pin
-#define LED_PIN 5
-
-// Initialize the ultrasonic sensor with the specified pins
-UltraSonicDistanceSensor distanceSensor(TRIG_PIN, ECHO_PIN);
-
-WiFiClient net;
-PubSubClient client(net);
-
-// Function to Connect to Wi-Fi
-void connectWiFi() {
-  Serial.print("Connecting to Wi-Fi...");
-  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
-  }
-  Serial.println("\nWi-Fi Connected!");
-}
-
-// Function to Connect to EMQX MQTT Broker
-void connectMQTT() {
-  client.setServer(mqttServer, mqttPort);
-  client.setCallback(callback);
-
-  Serial.print("Connecting to MQTT...");
-  while (!client.connected()) {
-    if (client.connect(mqttClientID)) {  // No username/password needed
-      Serial.println("\nMQTT Connected!");
-      client.subscribe(mqttTopic);  // Subscribe to the same topic
-    } else {
-      Serial.print(".");
-      delay(2000);  // Wait for 2 seconds before retrying
+void setupWiFi() {
+    Serial.print("Connecting to WiFi...");
+    WiFi.begin(ssid, pass);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
     }
-  }
+    Serial.println("Connected to WiFi");
 }
 
-// Function to Handle Incoming MQTT Messages
-void callback(char topic[], byte payload[], unsigned int length) {
-  char message[10];  // Buffer to store received message
-  for (unsigned int i = 0; i < length; i++) {
-    message[i] = (char)payload[i];
-  }
-  message[length] = '\0';  // Null-terminate the string
-
-  Serial.print("Received message: ");
-  Serial.println(message);
-  
-  if (strcmp(message, "wave") == 0) {  // Compare received message
-    digitalWrite(LED_PIN, HIGH);
-    delay(1000);
-    digitalWrite(LED_PIN, LOW);
-  }
-}
-
-// Function to Detect Wave & Publish MQTT Message
-void detectWave() {
-  int distance = distanceSensor.measureDistanceCm();  // Measure the distance in cm
-  
-  if (distance > 0 && distance < 10) {  // Wave detected if object is within 10 cm
-    Serial.println("Wave detected! Sending MQTT message...");
-    client.publish(mqttTopic, "wave");
-    delay(2000);  // Prevent spamming the topic
-  }
+void reconnect() {
+    while (!client.connected()) {
+        Serial.print("Connecting to MQTT...");
+        if (client.connect("ArduinoClient")) {
+            Serial.println("Connected to MQTT!");
+        } else {
+            Serial.print("Failed, rc=");
+            Serial.print(client.state());
+            Serial.println(" Trying again...");
+            delay(5000);
+        }
+    }
 }
 
 void setup() {
-  Serial.begin(115200);
-  pinMode(LED_PIN, OUTPUT);
-
-  connectWiFi();
-  connectMQTT();
+    Serial.begin(115200);
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+    setupWiFi();
+    client.setServer(mqtt_server, mqtt_port);
 }
 
 void loop() {
-  // Ensure that the connection is only attempted if it is disconnected
-  if (!client.connected()) {
-    connectMQTT();
-  }
-  
-  client.loop();  // Handle incoming messages
+    if (!client.connected()) {
+        reconnect();
+    }
+    client.loop();
 
-  detectWave();  // Continuously detect wave
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+
+    long duration = pulseIn(ECHO_PIN, HIGH);
+    float distance = duration * 0.034 / 2;
+
+    if (distance < 10) {
+        Serial.println("Wave detected!");
+        client.publish(topic, "wave");
+        delay(2000); // Avoid multiple triggers
+    }
 }
