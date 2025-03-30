@@ -15,7 +15,8 @@ MqttClient mqttClient(wifiClient);
 
 const char broker[] = "broker.emqx.io";
 int        port     = 1883;
-const char topic[]  = "SIT210/wave4";
+const char waveTopic[]  = "SIT210/wave4";
+const char patTopic[]  = "SIT210/pat";
 
 //set interval for sending messages (milliseconds)
 const long interval = 8000;
@@ -75,16 +76,30 @@ void loop() {
 
       Serial.println("Wave detected");
       Serial.print("Sending message to topic: ");
-      Serial.println(topic);
+      Serial.println(waveTopic);
       Serial.println("Dinith");
 
       // send message, the Print interface can be used to set the message contents
-      mqttClient.beginMessage(topic);
+      mqttClient.beginMessage(waveTopic);
       mqttClient.print("Dinith");
       mqttClient.endMessage();
 
       Serial.println();
 
-    } 
+    } else if (Distance < 40) {
+
+      Serial.println("Pat detected");
+      Serial.print("Sending message to topic: ");
+      Serial.println(patTopic);
+      Serial.println("Dinith");
+
+      // send message, the Print interface can be used to set the message contents
+      mqttClient.beginMessage(patTopic);
+      mqttClient.print("Dinith");
+      mqttClient.endMessage();
+
+      Serial.println();
+
+    }
   }
 }
