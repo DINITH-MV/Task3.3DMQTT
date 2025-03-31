@@ -77,11 +77,11 @@ void loop() {
       Serial.println("Wave detected");
       Serial.print("Sending message to topic: ");
       Serial.println(waveTopic);
-      Serial.println("Dinith");
+      Serial.println("DinithWave");
 
       // send message, the Print interface can be used to set the message contents
       mqttClient.beginMessage(waveTopic);
-      mqttClient.print("Dinith");
+      mqttClient.print("DinithWave");
       mqttClient.endMessage();
 
       Serial.println();
@@ -91,11 +91,11 @@ void loop() {
       Serial.println("Pat detected");
       Serial.print("Sending message to topic: ");
       Serial.println(patTopic);
-      Serial.println("Dinith");
+      Serial.println("DinithPat");
 
       // send message, the Print interface can be used to set the message contents
       mqttClient.beginMessage(patTopic);
-      mqttClient.print("Dinith");
+      mqttClient.print("DinithPat");
       mqttClient.endMessage();
 
       Serial.println();

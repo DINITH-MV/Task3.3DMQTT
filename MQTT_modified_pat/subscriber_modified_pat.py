@@ -20,11 +20,11 @@ def on_message(client, userdata, msg):
             time.sleep(0.5)
             
     elif message == "DinithPat":
-        for _ in range(5):  # Blink LED 5 times
+        for _ in range(4):  # Blink LED 5 times
             GPIO.output(LED_PIN, GPIO.HIGH)
-            time.sleep(0.2)
+            time.sleep(1)
             GPIO.output(LED_PIN, GPIO.LOW)
-            time.sleep(0.2)
+            time.sleep(1)
             
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
