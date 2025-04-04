@@ -3,6 +3,7 @@ import RPi.GPIO as GPIO
 import time
 
 BROKER = "broker.emqx.io"
+TOPIC = "SIT210/wave4"
 LED_PIN = 19
 
 GPIO.setmode(GPIO.BCM)
@@ -18,15 +19,15 @@ def on_message(client, userdata, msg):
             time.sleep(0.5)
             GPIO.output(LED_PIN, GPIO.LOW)
             time.sleep(0.5)
-                        
+
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Connected to MQTT Broker!")
-        client.subscribe("SIT210/wave4")
-        
+        client.subscribe(TOPIC)
     else:
         print(f"Failed to connect, return code {rc}")
         sys.exit(1)
+
 
 client = mqtt.Client()
 client.on_connect = on_connect
